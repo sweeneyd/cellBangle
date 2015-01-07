@@ -28,12 +28,14 @@ class cellBangle(object):
     def __init__(self, filename):
         cap = cv2.VideoCapture(filename)
         meds = getMedian(cap)
+        self.coord = []
         while cap.isOpened():
             try:
                 ret, frame = cap.read()
-                if frame != None:
+                if ret == True:
                     thresh, contours, coord_list = getFiltered(frame, meds)
-                    #thresh = getCanny(frame) 
+                    #thresh = getCanny(frame)
+                    self.coord.append(coord_list)
                 else:
                     break
                 cv2.imshow('thresh', thresh)
@@ -52,7 +54,7 @@ def getMedian(cap):
     while cap.isOpened():
         try:
             ret, frame = cap.read()
-            if frame == None:
+            if ret == False:
                 break
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             total_data.append(gray)
@@ -88,17 +90,19 @@ def getContours(img, fit_type='ellipse', AREA_EXCLUSION_LIMITS=(200, 2000), CELL
                 center_list.append(center)
                 radius_list.append(radius)
                 cv2.circle(img,center,int(radius),(0,255,0),-11)
-            coord_list.append([center_list, radius_list])
+                coord_list.append([center_list, radius_list])   
             
         elif fit_type == 'ellipse':
             if len(contours[i]) >= 5:
+                # ellipse == ((center_x, center_y), (minor_axis, major_axis), angle_in_degrees)
                 ellipse = cv2.fitEllipse(contours[i])
+                coord_list = ellipse
                 area = np.pi*np.product(ellipse[1])
                 if area >= AREA_EXCLUSION_LIMITS[0] and area < AREA_EXCLUSION_LIMITS[1]:
                     cv2.ellipse(img,ellipse,(0,255,0),-1)
     return img, contours, coord_list
 
-# Get     
+# Perform filtering on image to return filled-in objects     
 def getFiltered(img, meds, CELL_BINARY_THRESHOLD = 127):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     subBG = trimEdges(gray, meds)
@@ -108,14 +112,33 @@ def getFiltered(img, meds, CELL_BINARY_THRESHOLD = 127):
     thresh, contours, coord_list = getContours(thresh)
     return thresh, contours, coord_list
     
-def getCanny(img, meds, CELL_BINARY_THRESHOLD = 127):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    subBG = trimEdges(gray, meds)
-    thresh = cv2.erode(subBG, None, 10)
-    thresh = cv2.dilate(thresh, None, 10)
-    ret,thresh = cv2.threshold(subBG,CELL_BINARY_THRESHOLD,255,0)
-    thresh = cv2.Canny(thresh, 5, 10)
-    return thresh
+def addNextFrameElipses(ellipse_array, new_elipses):
+    valid_elipses = rmDuplicates(new_elipses)
+    for i in len(valid_elipses):
+        a = 0
+    return a
+        
+#BROKEN
+def rmDuplicates(elipses):
+    valid_elipses = elipses
+    for i in range(len(elipses)):
+        x1, y1 = elipses[i][0]
+        for j in range(len(elipses)):
+            if i != j:
+                x2, y2 = elipses[j][0]
+                dist = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+                if dist < elipses[j][1][0]:
+                    valid_elipses.pop(j)
+    return valid_elipses
+    
+#def getCanny(img, meds, CELL_BINARY_THRESHOLD = 127):
+#    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#    subBG = trimEdges(gray, meds)
+#    thresh = cv2.erode(subBG, None, 10)
+#    thresh = cv2.dilate(thresh, None, 10)
+#    ret,thresh = cv2.threshold(subBG,CELL_BINARY_THRESHOLD,255,0)
+#    thresh = cv2.Canny(thresh, 5, 10)
+#    return thresh
     
 # ============================================================================
 #                           Video Analysis
@@ -124,3 +147,4 @@ def getCanny(img, meds, CELL_BINARY_THRESHOLD = 127):
 if __name__ == '__main__':
     filename = '/Users/Dan/Movies/nprot.mp4'
     cb = cellBangle(filename)
+    exit
